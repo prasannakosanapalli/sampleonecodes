@@ -1,0 +1,1 @@
+echo "fs-c486b845.efs.us-east-1.amazonaws.com:/ /var/lib/jenkins/jobs nfs defaults   0   0 "> /etc/fstab

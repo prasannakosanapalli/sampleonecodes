@@ -1,0 +1,10 @@
+ec2, vpc, route53, s3, service managaer, forgat, lamda, cloudformation,sqs,sms,sns,api gateway,ecs,ecr, autoscaling,loadbalancer.
+dynamodb. cloudwatch. codepipeline. iam,
+ebs
+cognito
+concepts:-
+-----------
+ec2
+ami
+blockstorage
+s3

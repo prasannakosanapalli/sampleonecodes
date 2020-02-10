@@ -1,0 +1,111 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: prasanna
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-9050c3eb
+    Description: Select a VPC that allows instances to access the Internet.
+  SubnetId:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: subnet-36f3c919
+    Description: Select at two subnets in your selected VPC.
+  DesiredCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '1'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    ConstraintDescription: Please choose a valid instance type.
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: Nova-Test
+  taskdefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: Nova-Test
+      containerDefinitions:
+      - name: nginx
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+        memory: '256'
+        cpu: '256'
+        essential: true
+        portMappings:
+        - containerPort: '80'
+          protocol: tcp
+        links:
+        - app
+      - name: app
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2
+        memory: '256'
+        cpu: '256'
+        essential: true
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+      - us-east-1c
+      Cooldown: '300'
+      DesiredCapacity: '1'
+      HealthCheckGracePeriod: '0'
+      HealthCheckType: EC2
+      MaxSize: '1'
+      MinSize: '0'
+      VPCZoneIdentifier:
+      - subnet-36f3c919
+      LaunchConfigurationName:
+        Ref: ContainerInstances
+      TerminationPolicies:
+      - Default
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: ami-0b84afb18c43907ba
+      InstanceType: t2.micro
+      KeyName: prasanna
+      UserData:
+        Fn::Base64:
+          Fn::Join:
+          - ''
+          - - "#!/bin/bash -xe\n"
+            - echo ECS_CLUSTER=
+            - Ref: ECSCluster
+            - " >> /etc/ecs/ecs.config\n"
+            - 'yum install -y aws-cfn-bootstrap
+
+'
+            - "/opt/aws/bin/cfn-signal -e $? "
+            - "         --stack "
+            - Ref: AWS::StackName
+            - "         --resource ECSAutoScalingGroup "
+            - "         --region "
+            - Ref: AWS::Region
+            - "\n"
+      IamInstanceProfile: arn:aws:iam::536285340728:instance-profile/ecsInstanceRole
+      InstanceMonitoring: 'true'
+      SecurityGroups:
+      - sg-0eb21836ffe9d043d
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvdcz"
+        Ebs:
+          VolumeSize: 22
+  service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        Ref: ECSCluster
+      DesiredCount: '1'
+      TaskDefinition:
+        Ref: taskdefinition

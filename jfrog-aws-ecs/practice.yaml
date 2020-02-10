@@ -1,0 +1,131 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: practice the templates for jfrog artifactory
+Parameters:
+  Amitype:
+    Type: String
+    Description: please select amazon/ubuntu type
+    AllowedValues:
+      - 'amazon'
+      - 'ubuntu'
+  Subami:
+    Type: String
+    Description: please select normal/advance type
+    AllowedValues:
+      - 'normal'
+      - 'advance'      
+  Instancechoose:
+    Type: String
+    Description: please select amazon/ubuntu type
+    AllowedValues:
+      - 'smalltype'
+      - 'mediumtype'
+  subinstancechoose:
+    Type: String
+    Description: please select amazon/ubuntu type
+    AllowedValues:
+      - 'micro'
+      - 'small'
+      - 'medium'
+      - 'large'
+  ramcapacity:
+    Type: String
+    Description: please select amazon/ubuntu type
+    AllowedValues:
+      - 'smallsize'
+      - 'mediumsize'
+  subramcapacity:
+    Type: String
+    Description: please select amazon/ubuntu type
+    AllowedValues:
+      - 'tiny'
+      - 'small'
+      - 'medium'
+      - 'abovemedium'
+  Keyname:
+    Type: String
+    Default: prasanna
+
+
+Mappings:
+  AMIs:
+    amazon:
+      normal: ami-09d069a04349dc3cb
+      advance: ami-062f7200baf2fa504
+    ubuntu:
+      normal: ami-08bc77a2c7eb2b1da
+      advance: ami-07ebfd5b3428b6f4d
+  Instancetype:
+    smalltype:
+      micro: t2.micro
+      small: t2.small
+    mediumtype:
+      medium: t2.medium
+      large: t2.large
+  Ramsize:
+    smallsize:
+      tiny: 15
+      small: 25
+    mediumsize:
+      medium: 35
+      abovemedium: 50  
+
+Resources:
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties: 
+      BlockDeviceMappings: 
+        - DeviceName: /dev/xvda	
+          Ebs: 
+            VolumeSize: !FindInMap
+              - Ramsize
+              - !Ref ramcapacity
+              - !Ref subramcapacity
+            DeleteOnTermination: "True"
+      ImageId: !FindInMap
+        - AMIs
+        - !Ref Ami
+        - !Ref Subami
+      InstanceType: !FindInMap
+        - Instancetype
+        - !Ref instancechoose
+        - !Ref subinstancechoose
+      KeyName: !Ref KeyName
+      LaunchConfigurationName: jfrog-ecs
+      SecurityGroups: 
+        - !Ref ec2securitygroup-ssh
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            sudo apt-get update -y     
+  Autoscalinggroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: autoscalegroup
+      AvailabilityZones: 
+        - String
+      DesiredCapacity: 1
+      MaxSize: 3
+      MinSize: 1
+      HealthCheckGracePeriod: Integer
+      HealthCheckType: String
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      LifecycleHookSpecificationList: 
+        - LifecycleHookSpecification
+      LoadBalancerNames: 
+        - !Ref loadbalncer 
+      MetricsCollection: 
+        - MetricsCollection
+      MixedInstancesPolicy: 
+        MixedInstancesPolicy
+      NotificationConfigurations: 
+        - NotificationConfiguration
+      PlacementGroup: String
+      ServiceLinkedRoleARN: String
+      TargetGroupARNs: 
+        - String
+      TerminationPolicies: 
+        - String
+      VPCZoneIdentifier: 
+        - String
+

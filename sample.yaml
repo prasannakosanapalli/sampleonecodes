@@ -1,0 +1,85 @@
+--- 
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Stack for sonar Tool.\n"
+Parameters: 
+  accesskey: 
+    Default: AKIAXZXIY4Q4OQX5IE5K
+    Type: String
+  ami: 
+    Default: ami-00d4e9ff62bc40e03
+    Type: String
+  awsregion: 
+    Default: us-east-1
+    Type: String
+  azs: 
+    Default: "us-east-1a, us-east-1b, us-east-1c, us-east-1d, us-east-1e, us-east-1f"
+    Type: CommaDelimitedList
+  instancetype: 
+    Default: t2.large
+    Type: String
+  secretkey: 
+    Default: 25r4QLtr56EqfxCVzEk3eHwS1lxhn6bWWEsYH8Ms
+    Type: String
+  securitygroup: 
+    Default: sg-00ec57c74f9cf0cf7
+    Type: String
+  subnetscidr: 
+    Default: "10.20.1.0/28, 10.20.2.0/28"
+    Type: CommaDelimitedList
+  vpccidr: 
+    Default: 10.20.0.0/16
+    Type: String
+  webserversami: 
+    Default: ami-00eb20669e0990cb4
+    Type: String
+Resources: 
+  EC2Instance: 
+    Properties: 
+      ImageId: webserversami
+      InstanceType: instancetype
+      KeyName: prasanna
+      SecurityGroups: 
+        - !Ref securitygroup
+      Tags: 
+        - 
+          Key: name
+          Value: "sonar test Instance"
+      UserData: 
+        ? "Fn::Base64"
+        : |
+            #!/bin/bash -xe
+            sudo su 
+            sudo yum update -y
+            sudo wget https://d3pxv6yz143wms.cloudfront.net/11.0.5.10.1/java-11-amazon-corretto-devel-11.0.5.10-1.x86_64.rpm 
+            sudo yum install -y java-11-amazon-corretto-devel-11.0.5.10-1.x86_64.rpm 
+            sudo yum update -y
+            sudo java -version
+            sudo wget -O /etc/yum.repos.d/sonar.repo http://downloads.sourceforge.net/project/sonar-pkg/rpm/sonar.repo
+            sudo yum install -y sonar
+            sudo service sonar restart
+    Type: "AWS::EC2::Instance"
+  MyLoadBalancer: 
+    Properties: 
+      AvailabilityZones: 
+        - azs
+      HealthCheck: 
+        HealthyThreshold: "10"
+        Interval: "30"
+        Target: "HTTP:9000/"
+        Timeout: "20"
+        UnhealthyThreshold: "2"
+      Instances: 
+        - 
+          Ref: EC2Instance
+      Listeners: 
+        - 
+          InstancePort: "9000"
+          LoadBalancerPort: "9000"
+          Protocol: HTTP
+      SecurityGroups: 
+        - sg-00ec57c74f9cf0cf7
+      Tags: 
+        - 
+          Key: Name
+          Value: "sonar instance"
+    Type: "AWS::ElasticLoadBalancing::LoadBalancer"

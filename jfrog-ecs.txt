@@ -1,0 +1,41 @@
+The Quick Start sets up the following:
+? A highly available architecture that spans two Availability Zones.*
+? A VPC configured with public and private subnets according to AWS best practices, to
+provide you with your own virtual network on AWS.*
+? In the public subnets:
+– Managed network address translation (NAT) gateways to allow outbound
+internet access for resources in the private subnets.*
+– A Linux bastion host in an Auto Scaling group to allow inbound Secure Shell
+(SSH) access to EC2 instances in public and private subnets.*
+? A Network Load Balancer attached to the public subnets connecting via port 443 to the
+NGINX container, providing reverse proxy and Secure Sockeets Layer (SSL) termination
+for the Artifactory primary and secondary nodes listening on port 8081.
+? In the private subnets:
+– An Amazon RDS instance accessible only from the private subnets on port 3306.
+Amazon Web Services – Artifactory with Amazon ECS on the AWS Cloud September 2019
+– Two Amazon ECS service groups, one for the primary node, and the other for the
+secondaries.
+– Artifactory and NGINX containers.
+– An Auto Scaling group configured specifically to boot instances ready to host
+Artifactory.
+? A private and encrypted S3 bucket for repository storage.
+-------------------------------------------------------------------------------------
+for some aspects of some services.
+Resource This deployment uses
+VPCs 1
+Elastic IP addresses 3
+AWS Identity and
+Access Management
+(IAM) users
+1
+IAM roles 2
+Security groups 4
+Auto Scaling groups 3
+Load balancers 1
+m4.xlarge instances 4
+t2.micro instances 1
+db.m4.large (RDS) 1
+S3 Buckets 1
+ECS cluster 1
+ECS service 2
+-------------------------------------------------

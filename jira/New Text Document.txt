@@ -1,0 +1,7 @@
+   "serviceAccount" : "farid.roshan@altimetrik.com",
+    #it will reside in DB
+    #so for first we have to collect jira client access
+    #using jiraURL,serviceAccount and serviceAccountToken
+    #each client db will have only one schema with the name = collector_config
+    "serviceAccountToken" : "cA1AvOAgGdMaccejfgwy8919",
+    "jiraURL" : "https://altimetrik.atlassian.net", 

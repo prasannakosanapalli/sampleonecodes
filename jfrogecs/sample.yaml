@@ -1,0 +1,105 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  vpc:
+    Type: String
+    Default: devops-training
+Resources:
+
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: jfrog-ecs
+  TaskDefination:
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      ContainerDefinitions: 
+      - name: nginx
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+        memory: '256'
+        cpu: '256'
+        essential: true
+        portMappings:
+        - containerPort: '80'
+          protocol: tcp
+        links:
+        - jfrog
+      - name: jfrog
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2
+        memory: '256'
+        cpu: '256'
+        essential: true
+        portMappings:
+        - containerPort: '8081'
+          protocol: tcp
+      Cpu: 1024
+      ExecutionRoleArn: arn:aws:iam::536285340728:role/ecsTaskExecutionRole
+      Family: jfrog
+      Memory: 1024
+      RequiresCompatibilities: 
+      - EC2
+      TaskRoleArn: arn:aws:iam::536285340728:role/ecsTaskExecutionRole
+  ECSservice:
+    Type: AWS::ECS::Service
+    DependsOn: 
+    - AutoscaleGroup
+    Properties:
+      Cluster: jfrog-ecs
+      LaunchType: EC2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 10
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          LoadBalancerName: !Ref Loadbalancer
+      TaskDefinition: !Ref TaskDefinition
+      Role: AWSServiceRoleForECS
+
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties: 
+      ClassicLinkVPCId: $Ref vpc
+      KeyName: prasanna
+      ImageId: ami-062f7200baf2fa504
+      InstanceType: t2.micro
+      LaunchConfigurationName: jfrog
+      SecurityGroups:
+        - sample-prsanna
+
+  AutoscaleGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    DependsOn: 
+    - LaunchConfiguration
+    Properties: 
+      AutoScalingGroupName: jfrog
+      AvailabilityZones: 
+        - String
+      Cooldown: 300
+      DesiredCapacity: 1
+      HealthCheckGracePeriod: 10
+      HealthCheckType: EC2
+      InstanceId: String
+      LaunchConfigurationName: $Ref LaunchConfiguration
+      LaunchTemplate: 
+        LaunchConfiguration
+      LoadBalancerNames: 
+        - Loadbalancer 
+      MaxSize: 2
+      MinSize: 1
+
+  Loadbalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties: 
+      Listeners: 
+      - LoadBalancerPort:80
+        InstancePort:80
+        Protocol:"HTTP"
+      SecurityGroups: 
+        - sample-prsanna
+      Subnets: 
+        - subnet-2e331811
+        - subnet-36f3c919
+        - subnet-5a615a07
+

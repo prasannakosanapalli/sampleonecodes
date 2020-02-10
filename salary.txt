@@ -1,0 +1,22 @@
+usa
+switzerland
+norway
+israel
+denmark
+uk
+germany
+austrila
+sweden
+netherlands
+anda
+finland
+newzland
+france
+sweden
+brazil
+ukrania
+kuwait
+malysia
+
+
+sonarScan -Dsonar.branch=$branch

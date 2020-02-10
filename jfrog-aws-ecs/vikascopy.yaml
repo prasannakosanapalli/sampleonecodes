@@ -1,0 +1,236 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: vps for ecs
+Parameters:
+  MasterKey:
+    Type: String
+    NoEcho: 'true'
+  DBType:
+    Type: String
+  DatabaseUser:
+    Type: String
+  DatabaseName:
+    Type: String
+  DatabasePassword:
+    Type: String
+    NoEcho: 'true'
+  BucketName:
+    Description: Name of MyS3Bucket
+    Type: String
+    Default: jfro-ecs-storage
+  VPC:
+    Type: String
+  Subnet1: 
+    Type: String
+  Subnet2: 
+    Type: String
+
+Resources:
+  S3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: Private
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+
+      
+  Subnet1:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select 
+        - 0
+        - 'Fn::GetAZs': !Ref 'AWS::Region'
+      CidrBlock: !Sub 10.0.0.0/20
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+  Subnet2:
+    Type: 'AWS::EC2::Subnet'
+    Properties:
+      AvailabilityZone: !Select 
+        - 1
+        - 'Fn::GetAZs': !Ref 'AWS::Region'
+      CidrBlock: !Sub 10.0.32.0/20
+      MapPublicIpOnLaunch: true
+      VpcId: !Ref VPC
+  
+  ECSTaskExecutionRole:
+    Type: 'AWS::IAM::Role'
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ecs-tasks.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      Path: /
+      Policies:
+        - PolicyName: AmazonECSTaskExecutionRolePolicy
+          PolicyDocument:
+            Statement:
+              - Effect: Allow
+                Action:
+                  - 'ecr:GetAuthorizationToken'
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:BatchGetImage'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Resource: '*'
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: jfrog
+  
+  LoadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+    Properties:
+      Name: ecs-services
+      Subnets:
+        - !Ref Subnet1
+        - !Ref Subnet2
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+  LoadBalancerListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Protocol: HTTP
+      Port: 8081
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref DefaultTargetGroup
+  LoadBalancerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+  DefaultTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: default
+      VpcId: !Ref VPC
+      Protocol: HTTP
+      Port: '8081'
+  CloudWatchLogsGroup:
+    Type: 'AWS::Logs::LogGroup'
+    Properties:
+      LogGroupName: apis
+      RetentionInDays: 1
+  ContainerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      VpcId: !Ref VPC
+      GroupDescription: for ecs containers
+      SecurityGroupIngress:
+        - SourceSecurityGroupId: !Ref LoadBalancerSecurityGroup
+          IpProtocol: -1
+  Task:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      Family: apis
+      Cpu: 256
+      Memory: 512
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ExecutionRoleArn: !Ref ECSTaskExecutionRole
+      ContainerDefinitions:
+        - Name: booksapi
+          Image: docker.bintray.io/jfrog/artifactory-pro:latest
+          Cpu: 256
+          Memory: 512
+          PortMappings:
+            - ContainerPort: 8081
+              Protocol: tcp
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: apis
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: books-api
+          Ulimits:
+            - Name: nproc
+              SoftLimit: 65535
+              HardLimit: 65535
+            - Name: nofile
+              SoftLimit: 32000
+              HardLimit: 40000
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - >-
+                (printf 'GET /artifactory/api/system/ping HTTP/1.0\r\n\r\n';
+                sleep 1) | nc 127.0.0.1 8081 | grep OK || exit 1
+            Interval: 5
+            Retries: 3
+            StartPeriod: 60
+            Timeout: 10
+          Environment:
+            - Name: ARTIFACTORY_MASTER_KEY
+              Value: !Ref MasterKey
+            - Name: DB_URL
+              Value: !Sub >-
+                jdbc:postgresql://localhost:5432/artifactory?ssl=true&sslfactory=org.postgresql.ssl.jdbc4.LibPQFactory&sslmode=verify-full          
+            - Name: DB_TYPE
+              Value: !Ref DBType
+            - Name: DB_USER
+              Value: !Ref DatabaseUser
+            - Name: DB_PASSWORD
+              Value: !Ref DatabasePassword
+  Service:
+    Type: 'AWS::ECS::Service'
+    DependsOn: ListenerRule
+    Properties:
+      ServiceName: books-service
+      TaskDefinition: !Ref Task
+      Cluster: !Ref ECSCluster
+      LaunchType: FARGATE
+      DesiredCount: 2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 70
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          Subnets:
+            - !Ref Subnet1
+            - !Ref Subnet2
+          SecurityGroups:
+            - !Ref ContainerSecurityGroup
+      LoadBalancers:
+        - ContainerName: booksapi
+          ContainerPort: 8081
+          TargetGroupArn: !Ref TargetGroup
+  TargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      Name: books-tg
+      VpcId: !Ref VPC
+      Port: 8081
+      Protocol: HTTP
+      Matcher:
+        HttpCode: 200-299
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 10
+      TargetType: ip
+  ListenerRule:
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+    Properties:
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 2
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /

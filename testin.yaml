@@ -1,0 +1,87 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  Stack for sonar Tool.
+Parameters:
+  ami:
+    Type: String 
+    Default: "ami-00d4e9ff62bc40e03"
+  awsregion:
+    Type: String
+    Default: "us-east-1"
+  vpccidr:
+    Type: String
+    Default: "10.20.0.0/16"
+  subnetscidr:
+    Type: CommaDelimitedList
+    Default: "10.20.1.0/28, 10.20.2.0/28"
+  azs:
+    Type: CommaDelimitedList
+    Default: "us-east-1c"
+  secretkey:
+    Type: String
+    Default: "25r4QLtr56EqfxCVzEk3eHwS1lxhn6bWWEsYH8Ms"
+  accesskey:
+    Type: String
+    Default: "AKIAXZXIY4Q4OQX5IE5K"
+  webserversami:
+    Type: String
+    Default: "ami-00eb20669e0990cb4"
+  instancetype:
+    Type: String
+    Default: "t2.large"
+  securitygroup:
+    Type: String
+    Default: "sg-00ec57c74f9cf0cf7"
+
+Resources:
+  EC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+        ImageId: !Ref webserversami
+        KeyName: prasanna
+        InstanceType: !Ref instancetype
+        Tags:
+          - Key: name
+            Value: sonar test Instance
+        UserData:
+          Fn::Base64: !Sub |
+            #!/bin/bash -xe
+            sudo su 
+            sudo yum update -y
+            sudo wget https://d3pxv6yz143wms.cloudfront.net/11.0.5.10.1/java-11-amazon-corretto-devel-11.0.5.10-1.x86_64.rpm 
+            sudo yum install -y java-11-amazon-corretto-devel-11.0.5.10-1.x86_64.rpm 
+            sudo yum update -y
+            sudo java -version
+            sudo wget -O /etc/yum.repos.d/sonar.repo http://downloads.sourceforge.net/project/sonar-pkg/rpm/sonar.repo
+            sudo yum install -y sonar
+            sudo service sonar restart
+
+  MyLoadBalancer:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      AvailabilityZones: !Ref azs
+      Instances:
+      - Ref: EC2Instance
+      Listeners:
+      - LoadBalancerPort: '9000'
+        InstancePort: '9000'
+        Protocol: HTTP
+      HealthCheck:
+        Target: HTTP:9000/
+        HealthyThreshold: '10'
+        UnhealthyThreshold: '2'
+        Interval: '30'
+        Timeout: '20'
+      Tags:
+        - Key: Name
+          Value: sonar instance
+
+  InstanceSecurityGroup:
+      Type: AWS::EC2::SecurityGroup
+      Properties:
+        GroupDescription: Enable SSH access via port 22
+        SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 9000
+          ToPort: 9000
+          CidrIp: 0.0.0.0/0

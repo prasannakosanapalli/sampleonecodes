@@ -1,0 +1,60 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  vpc:
+    Type: String
+    Default: devops-training
+
+Resources: 
+  Cluster:
+    Type: AWS::ECS::Cluster
+  taskdefinition: 
+    Type: AWS::ECS::TaskDefinition
+    Properties: 
+      RequiresCompatibilities:
+        - "EC2"
+      ContainerDefinitions:
+        - PortMappings:
+          - HostPort: 8081
+            Protocol: tcp
+            ContainerPort: 8081
+          Cpu: 256
+          Memory: 256 
+          Image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2 
+          Name: jfrog
+          Essential: false
+          DependsOn:
+            - ContainerName: nginx
+              Condition: START
+
+        - PortMappings:
+          - HostPort: 80
+            Protocol: tcp
+            ContainerPort: 80 
+          Cpu: 256
+          Memory: 256
+          Image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+          Name: nginx
+          Essential: true
+          Environment:
+                    - Name: CONFIGURE_MODE
+                      Value: config_mode
+  ECSservice:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: EC2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 10
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          TargetGroupArn : arn:aws:elasticloadbalancing:us-east-1:536285340728:loadbalancer/net/jfrog/36d39acff2cf9f1c
+      Role: AWSServiceRoleForECS
+      TaskDefinition: !Ref taskdefinition
+      ServiceName: jfrog
+Outputs:
+  clustername:
+    Value: !Ref Cluster

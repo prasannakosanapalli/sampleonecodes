@@ -1,0 +1,62 @@
+AWSTemplateFormatVersion: 2010-09-09
+Parameters:
+  
+  Vpc:
+    Type: 'AWS::EC2::VPC::Id'
+    Default: vpc-00bc918e95f3c7bac
+    Description: Select a VPC that allows instances to access the Internet.
+
+  
+  
+Resources:
+  ECSCluster:
+    Type: 'AWS::ECS::Cluster'
+    Properties:
+      ClusterName: prasanna
+  taskdefinition:
+    Type: 'AWS::ECS::TaskDefinition'
+    Properties:
+      ExecutionRoleArn: 'arn:aws:iam::536285340728:role/ecsTaskExecutionRole'
+      ContainerDefinitions:
+        - LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: /ecs/MyJfrog_Task
+              awslogs-region: us-east-1
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - HostPort: 8081
+              Protocol: tcp
+              ContainerPort: 8081
+          Ulimits:
+            - Name: nofile
+              SoftLimit: 32000
+              HardLimit: 32000
+          Image: 'docker.bintray.io/jfrog/artifactory-oss:latest'
+          Name: JFRO_CONT
+      Memory: '4096'
+      Family: MyJfrog_Task
+      RequiresCompatibilities:
+        - FARGATE
+      NetworkMode: awsvpc
+      Cpu: '2048'
+  service:
+    Type: 'AWS::ECS::Service'
+    Properties:
+      Cluster: !Ref ECSCluster
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - sg-0eb21836ffe9d043d
+          Subnets:
+            - subnet-08f70c0071bfe1f87
+            - subnet-0b1746f3a2eb0355c
+      DesiredCount: '2'
+      LaunchType: FARGATE
+      TaskDefinition: !Ref taskdefinition
+      LoadBalancers:
+        - TargetGroupArn: arn:aws:elasticloadbalancing:us-east-1:536285340728:loadbalancer/net/jfrog-ecs-new/d9ed967940b1535b
+          ContainerPort: 8081
+          ContainerName: JFRO_CONT
+  

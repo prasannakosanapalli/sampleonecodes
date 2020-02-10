@@ -1,0 +1,27 @@
+2019.08.30 08:07:00 INFO  es[][o.e.e.NodeEnvironment] using [1] data paths, mounts [[(D:)]], net usable_space [11.4gb], net total_space [312.4gb], types [NTFS]
+2019.08.30 08:07:00 INFO  es[][o.e.e.NodeEnvironment] heap size [494.9mb], compressed ordinary object pointers [true]
+2019.08.30 08:07:01 INFO  es[][o.e.n.Node] node name [sonarqube], node ID [m6RQ8oMjStWGyyl9es5K6w]
+2019.08.30 08:07:01 INFO  es[][o.e.n.Node] version[6.8.0], pid[7996], build[unknown/unknown/65b6179/2019-05-15T20:06:13.172855Z], OS[Windows 10/10.0/amd64], JVM[Oracle Corporation/Java HotSpot(TM) 64-Bit Server VM/11.0.4/11.0.4+10-LTS]
+2019.08.30 08:07:01 INFO  es[][o.e.n.Node] JVM arguments [-XX:+UseConcMarkSweepGC, -XX:CMSInitiatingOccupancyFraction=75, -XX:+UseCMSInitiatingOccupancyOnly, -Des.networkaddress.cache.ttl=60, -Des.networkaddress.cache.negative.ttl=10, -XX:+AlwaysPreTouch, -Xss1m, -Djava.awt.headless=true, -Dfile.encoding=UTF-8, -Djna.nosys=true, -XX:-OmitStackTraceInFastThrow, -Dio.netty.noUnsafe=true, -Dio.netty.noKeySetOptimization=true, -Dio.netty.recycler.maxCapacityPerThread=0, -Dlog4j.shutdownHookEnabled=false, -Dlog4j2.disable.jmx=true, -Djava.io.tmpdir=D:\Project\SonarQube\sonarqube-7.9.1\temp, -XX:ErrorFile=../logs/es_hs_err_pid%p.log, -Xms512m, -Xmx512m, -XX:+HeapDumpOnOutOfMemoryError, -Delasticsearch, -Des.path.home=D:\Project\SonarQube\sonarqube-7.9.1\elasticsearch, -Des.path.conf=D:\Project\SonarQube\sonarqube-7.9.1\temp\conf\es]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [analysis-common]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [lang-painless]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [mapper-extras]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [parent-join]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [percolator]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [reindex]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [repository-url]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] loaded module [transport-netty4]
+2019.08.30 08:07:16 INFO  es[][o.e.p.PluginsService] no plugins loaded
+2019.08.30 08:07:25 WARN  es[][o.e.d.c.s.Settings] [http.enabled] setting was deprecated in Elasticsearch and will be removed in a future release! See the breaking changes documentation for the next major version.
+2019.08.30 08:07:32 INFO  es[][o.e.d.DiscoveryModule] using discovery type [zen] and host providers [settings]
+2019.08.30 08:07:34 INFO  es[][o.e.n.Node] initialized
+2019.08.30 08:07:34 INFO  es[][o.e.n.Node] starting ...
+2019.08.30 08:07:35 INFO  es[][o.e.t.TransportService] publish_address {127.0.0.1:9001}, bound_addresses {127.0.0.1:9001}
+2019.08.30 08:07:38 INFO  es[][o.e.c.s.MasterService] zen-disco-elected-as-master ([0] nodes joined), reason: new_master {sonarqube}{m6RQ8oMjStWGyyl9es5K6w}{5yZqmKmAQMKtmpE1JrWltA}{127.0.0.1}{127.0.0.1:9001}{rack_id=sonarqube}
+2019.08.30 08:07:38 INFO  es[][o.e.c.s.ClusterApplierService] new_master {sonarqube}{m6RQ8oMjStWGyyl9es5K6w}{5yZqmKmAQMKtmpE1JrWltA}{127.0.0.1}{127.0.0.1:9001}{rack_id=sonarqube}, reason: apply cluster state (from master [master {sonarqube}{m6RQ8oMjStWGyyl9es5K6w}{5yZqmKmAQMKtmpE1JrWltA}{127.0.0.1}{127.0.0.1:9001}{rack_id=sonarqube} committed version [1] source [zen-disco-elected-as-master ([0] nodes joined)]])
+2019.08.30 08:07:38 INFO  es[][o.e.n.Node] started
+2019.08.30 08:07:41 INFO  es[][o.e.g.GatewayService] recovered [7] indices into cluster_state
+2019.08.30 08:07:53 INFO  es[][o.e.c.r.a.AllocationService] Cluster health status changed from [RED] to [GREEN] (reason: [shards started [[metadatas][0]] ...]).
+2019.08.30 08:08:08 WARN  es[][o.e.c.r.a.DiskThresholdMonitor] flood stage disk watermark [95%] exceeded on [m6RQ8oMjStWGyyl9es5K6w][sonarqube][D:\Project\SonarQube\sonarqube-7.9.1\data\es6\nodes\0] free: 11.4gb[3.6%], all indices on this node will be marked read-only
+2019.08.30 08:08:38 WARN  es[][o.e.c.r.a.DiskThresholdMonitor] flood stage disk watermark [95%] exceeded on [m6RQ8oMjStWGyyl9es5K6w][sonarqube][D:\Project\SonarQube\sonarqube-7.9.1\data\es6\nodes\0] free: 11.3gb[3.6%], all indices on this node will be marked read-only
+2019.08.30 08:09:09 WARN  es[][o.e.c.r.a.DiskThresholdMonitor] flood stage disk watermark [95%] exceeded on [m6RQ8oMjStWGyyl9es5K6w][sonarqube][D:\Project\SonarQube\sonarqube-7.9.1\data\es6\nodes\0] free: 11.3gb[3.6%], all indices on this node will be marked read-only

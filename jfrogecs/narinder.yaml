@@ -1,0 +1,138 @@
+---
+AWSTemplateFormatVersion: '2010-09-09'
+Parameters:
+  KeyName:
+    Type: AWS::EC2::KeyPair::KeyName
+    Default: prasanna
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the ECS instances.
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Default: vpc-9050c3eb
+    Description: Select a VPC that allows instances to access the Internet.
+  SubnetId:
+    Type: List<AWS::EC2::Subnet::Id>
+    Default: subnet-36f3c919
+    Description: Select at two subnets in your selected VPC.
+  DesiredCapacity:
+    Type: Number
+    Default: '1'
+    Description: Number of instances to launch in your ECS cluster.
+  MaxSize:
+    Type: Number
+    Default: '2'
+    Description: Maximum number of instances that can be launched in your ECS cluster.
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t2.micro
+    ConstraintDescription: Please choose a valid instance type.
+Resources:
+  ECSCluster:
+    Type: AWS::ECS::Cluster
+    Properties: {}
+  taskdefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: Nova-Test
+      ContainerDefinitions:
+      - Name: jfrog
+        Cpu: '10'
+        Essential: 'true'
+        Image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2
+        Memory: '256'
+        PortMappings:
+            - ContainerPort: 8081
+              HostPort: 8081
+              Protocol: tcp
+      - Name: nginx
+        Cpu: '10'
+        Essential: 'true'
+        Image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+        Memory: '256'
+        PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: tcp
+      
+
+  ECSAutoScalingGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      AvailabilityZones:
+      - us-east-1c
+      Cooldown: '300'
+      DesiredCapacity: '1'
+      HealthCheckGracePeriod: '0'
+      HealthCheckType: EC2
+      MaxSize: '2'
+      MinSize: '1'
+      VPCZoneIdentifier:
+      - subnet-36f3c919
+      LaunchConfigurationName:
+        Ref: ContainerInstances
+      TerminationPolicies:
+      - Default
+  ContainerInstances:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: true
+      ImageId: ami-0b84afb18c43907ba
+      InstanceType: t2.micro
+      KeyName: prasanna
+      IamInstanceProfile: arn:aws:iam::536285340728:instance-profile/ecsInstanceRole
+      InstanceMonitoring: 'true'
+      SecurityGroups:
+      - sg-0eb21836ffe9d043d
+      BlockDeviceMappings:
+      - DeviceName: "/dev/xvdcz"
+        Ebs:
+          VolumeSize: 22
+  service:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster:
+        !Ref ECSCluster
+      DesiredCount: '1'
+      TaskDefinition:
+        !Ref taskdefinition
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          TargetGroupArn: !Ref 'ArtifactoryTargetGroup'
+
+  Loadbalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: ArtifactoryELB
+      Scheme: internet-facing
+      Subnets: 
+        - subnet-2e331811
+        - subnet-36f3c919
+        - subnet-5a615a07
+      Type: network
+  ArtifactoryTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      Name: Artifactory
+      Port: 80
+      Protocol: TCP
+      #Tags: 
+      #  - !Ref DeploymentTag
+      TargetType: instance
+      UnhealthyThresholdCount: 3
+      VpcId: !Ref VpcId
+  ArtifactoryELBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - TargetGroupArn: !Ref ArtifactoryTargetGroup.Arn
+          Type: forward
+      LoadBalancerArn: !Ref Loadbalancer
+      Port: 80
+      Protocol: TCP

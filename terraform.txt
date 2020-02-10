@@ -1,0 +1,95 @@
+
+Error: Invalid character
+
+  on main.tf line 31, in resource "aws_vpc" "sonar":
+  31:     cidr_block = ${var.vpc_cidr}
+
+This character is not used within the language.
+
+
+Error: Invalid expression
+
+  on main.tf line 31, in resource "aws_vpc" "sonar":
+  31:     cidr_block = ${var.vpc_cidr}
+
+Expected the start of an expression, but found an invalid expression token.
+
+
+Error: Invalid character
+
+  on main.tf line 37, in resource "aws_subnet" "sonar":
+  37:     vpc_id     = ${aws_vpc.sonar.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 38, in resource "aws_subnet" "sonar":
+  38:     cidr_block = ${var.subnets_cidr}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 44, in resource "aws_internet_gateway" "sonar":
+  44:   vpc_id = ${aws_vpc.sonar.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 51, in resource "aws_route_table" "sonar":
+  51:   vpc_id = ${aws_vpc.sonar.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 60, in resource "aws_security_group" "sonar":
+  60:   vpc_id      = ${aws_vpc.sonar.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 74, in resource "aws_instance" "sonar":
+  74:     ami           = ${data.aws_ami.ubuntu.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 76, in resource "aws_instance" "sonar":
+  76:     vpc_id = ${data.aws_vpc.selected.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 77, in resource "aws_instance" "sonar":
+  77:     subnet_id = ${data.aws_subnet.selected.id}
+
+This character is not used within the language.
+
+
+Error: Invalid character
+
+  on main.tf line 79, in resource "aws_instance" "sonar":
+  79:     vpc_security_group_ids = ${aws_security_group.sonar.id}
+
+This character is not used within the language.
+
+
+Error: Unsupported operator
+
+  on main.tf line 87:
+  87: ~
+
+Bitwise operators are not supported. Did you mean boolean NOT ("!")?

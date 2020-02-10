@@ -1,0 +1,30 @@
+
+
+ECR-- name: nginx
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+name: app
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2
+
+536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:jfrog
+docker.bintray.io/jfrog/artifactory-jcr:latest
+vpc
+iam
+app
+api
+docker.bintray.io/jfrog/artifactory-pro:latest 
+
+server {
+        listen 80 default_server;
+        listen [::]:80 default_server;
+        root /var/www/html;
+        server_name _;
+        location / {
+                proxy_pass http://localhost:8081;
+        }
+}
+
+sudo apt update
+sudo apt install openjdk-8-jre-headless
+sudo apt install openjdk-8-jdk
+
+https://jfrog.bintray.com/artifactory

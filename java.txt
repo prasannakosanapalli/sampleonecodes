@@ -1,0 +1,38 @@
+AWS services
+JIRA
+microsoft
+jenkins
+groovvy
+ansible
+docker
+sonar
+ECS
+R build
+bitbucket-git
+scala
+gitlab
+nexus
+jfrog
+ELK
+splunk
+promoteus
+grafana
+checkmarx
+AIRFLOW
+kubernetes
+controlM
+hadoop
+qliksense
+version strategy
+gradle
+terraform
+jenkins-x
+qulaysis
+Hlive
+----------------
+procure the serviceless account 
+cloudformation.
+s3 
+RDS
+artifactory supports s3 or not 
+hai guys, can  you help me how to - AWS RDS postgre  should be configure in Promethus.how to add in job section in promethus.yml ?

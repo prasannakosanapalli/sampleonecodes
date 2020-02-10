@@ -1,0 +1,59 @@
+confluence----- https://altimetrik.atlassian.net/wiki/spaces/DC/overview
+bitbucket-----https://git.altimetrik.com/bitbucket/projects
+cluster-------http://com.altimetrik.devops-platform-ui-dev.s3-website-us-east-1.amazonaws.com/
+jira----------https://altimetrik.atlassian.net/secure/BrowseProjects.jspa
+udemy---------https://altimetrik.udemy.com/organization/home/
+python examples---https://www.geeksforgeeks.org/python-programming-examples/
+slack--------------https://app.slack.com/client/T40L3KZ18/DNQJ75H9P
+
+https://www.atlassian.com/software/jira/bitbucket-integration
+1439d57af357475b828d633d1f22026b
+tools using:-
+novartis:-
+-----------
+gitlab
+jenkins
+elk-grafana, prometheus
+artifactory,nexus.
+sonar
+bitbucket
+jira
+confluence
+devops and cloud:-
+-----------------
+python,shell
+aws
+docker swarm and docker, kubernetes,
+git,maven,
+ansible
+---
+- name: nexus-role
+  hosts: localhost
+  remote_user: root
+  become: yes
+  become_method: sudo
+  gather_facts: true
+  vars:
+    username: username
+    artifact_id: artifact_id
+    dest: dest
+    group_id: group_id
+    password: password
+    repository_url: repository_url
+    username: username
+    version: version
+  tasks:
+  - name: nexusurl
+    maven_artifact:
+      artifact_id: {{ artifact_id }}
+      dest: {{ dest }}
+      group_id: {{ group_id }}
+      password: {{ password }}
+      repository_url: {{ repository_url }}
+      username: {{ username }}
+      version: {{ version }}
+SONAR_HOME =/opt/sonar
+PLATFORM='linux-x86-64'
+WRAPPER_CMD="${SONAR_HOME}bin/${PLATFORM}/wrapper"
+WRAPPER_CONF="{SONAR_HOME}/conf/wrapper.conf"
+PIDDIR="/var/run"

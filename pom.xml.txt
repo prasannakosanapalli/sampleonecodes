@@ -1,0 +1,91 @@
+pipeline {
+	agent any
+	 
+	stages {
+		stage (source code){
+			step (git checkout) {
+				checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '0d6ff225-006b-4e75-b54c-cbff6372f052', url: 'http://novartis.devops.altimetrik.io:7990/scm/son/maven-project.git']]])
+				}
+			}
+ 		stage (sonarqube){
+ 		environment scannerHome = tool 'SonarQubeScanner'
+    	}
+    		step {
+        		withSonarQubeEnv('sonarqube') {
+            	sh "${scannerHome}/bin/sonar-scanner"
+            	sh sonar -Dsonar.projectKey=${JOB_BASE_NAME} -Dsonar.sources='.' -Dsonar.java.binaries='.' -Dsonar.exclusions='target/**/*' -Dsonar.projectVersion=${JOBENV}.${BUILD_ID} -Dsonar.branch=${BRANCH}" 
+            }
+
+        }
+    }
+}
+
+node {
+  stage('SCM') {
+    checkout([$class: 'GitSCM', branches: [[name: '*/master']], doGenerateSubmoduleConfigurations: false, extensions: [], submoduleCfg: [], userRemoteConfigs: [[credentialsId: '0d6ff225-006b-4e75-b54c-cbff6372f052', url: 'http://novartis.devops.altimetrik.io:7990/scm/son/maven-project.git']]])
+  }
+  stage('SonarQube analysis') {
+    withSonarQubeEnv('My SonarQube Server') {
+      sh 'mvn org.sonarsource.scanner.maven:sonar-maven-plugin:3.2:sonar -Dsonar.branch.name=${BRANCH_NAME}'
+    }
+  }
+}
+@Library('my_sample_demo@scala_support') _
+
+pipeline {
+    agent { label 'scala'}
+    stages {
+        stage('Build') {
+            steps {
+                checkout scm
+                echo 'Start Compiling'
+                build 'Scala'
+            }
+        }
+        stage('Sonar Test') {
+            steps {
+                echo 'Start Sonar Test'
+                sonar 'Scala'
+            }
+        }
+        stage('Publish') {
+            agent { label 'slave1'}
+            steps {
+                script {
+                    withCredentials([usernamePassword(credentialsId: 'artifactory', passwordVariable: 'pass', usernameVariable: 'user')]) {
+                        version = nextVersionFromGit()
+                        sh "sed -i  '/ThisBuild \\/ version/c\\ThisBuild \\/ version          :=\"${version}\"' build.sbt"
+                        sh "${tool name: 'sbt', type:'org.jvnet.hudson.plugins.SbtPluginBuilder$SbtInstallation'}/bin/sbt package"
+                        echo "Deploy target/scala-2.12/hello-world_2.12-${version}.jar "
+                        sh "curl -u ${user}:${pass} -T target/scala-2.12/hello-world_2.12-${version}.jar 'http://novartis.devops.altimetrik.io:8081/artifactory/scala-project/hello-world_${version}.jar'"
+                    }
+                }
+            }
+        }
+        
+    }
+}
+
+
+
+def nextVersionFromGit() {
+    def latestVersion = sh returnStdout: true, script: "cat build.sbt | grep version | awk '{print \$5}' || echo 0.0.0"
+    latestVersion = latestVersion.replaceAll("\"", "");
+    def prefix = BRANCH_NAME.replaceAll("/","_")
+    def (major, minor, patch) = latestVersion.tokenize('.').collect { it.toInteger() }
+    def nextVersion 
+    switch (env.BRANCH_NAME) {
+        case 'master':
+            nextVersion = "${major + 1}.0.0"
+            break
+        case 'develop':
+            nextVersion = "${major}.${minor + 1}.0"
+            break
+        default:
+            nextVersion = "${major}.${minor}.${patch + 1}_${prefix}_${currentBuild.number}"
+            break
+    }
+    print "Next Version"
+    print nextVersion
+    nextVersion
+}

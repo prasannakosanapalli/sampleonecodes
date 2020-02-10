@@ -1,0 +1,269 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'JFrog Artifactory Quick Start Deployment'
+Parameters:
+  DatabaseName:
+    Type: String
+    Default: artifactory
+  
+
+Resources:
+  ArtifactoryDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Private Subnets available to the RDS Instance(s)
+      SubnetIds: 
+        - subnet-08f70c0071bfe1f87
+        - subnet-0b1746f3a2eb0355c
+  ArtifactoryDB:
+    Type: AWS::RDS::DBInstance
+    Properties: 
+      AllocatedStorage: 100
+      Engine: mysql
+      EngineVersion: 5.7.22
+      MasterUsername: admin
+      MasterUserPassword: Apk@2020
+      DBInstanceClass: db.m5.xlarge
+      DBName: jfrog
+      DBSubnetGroupName: !Ref ArtifactoryDBSubnetGroup
+      VPCSecurityGroups: 
+        - !Ref ArtifactoryDBSG
+  ArtifactoryDBSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      Tags:
+        - Key: Name
+          Value: artifactory-rds-sg
+      GroupDescription: SG for RDS Instance to allow communication from the Bastion and Artifactory servers.
+      VpcId: vpc-00bc918e95f3c7bac
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 10.0.0.0/16
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 10.0.0.0/16
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: 10.0.0.0/16
+      SecurityGroupEgress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+  ArtifactoryTaskDefinition:
+    Properties:
+      ContainerDefinitions:
+        - Command:
+            - >-
+              echo export HA_HOST_IP=`wget -q -O -
+              http://169.254.169.254/latest/meta-data/local-ipv4` > /tmp/source;
+              echo /entrypoint-artifactory.sh >> /tmp/source; chmod +x
+              /tmp/source; /tmp/source
+          EntryPoint:
+            - /bin/bash
+            - '-c'
+          Environment:
+            - Name: ARTIFACTORY_MASTER_KEY
+              Value: Apk@2020
+            - Name: DB_URL
+              Value: >-
+                jdbc:mysql://ta1dazerrp7vhs9.ccac5zy4egop.us-east-1.rds.amazonaws.com:3306/artifactory?characterEncoding=UTF-8&elideSetAutoCommits=true&verifyServerCertificate=true&useSSL=true&requireSSL=true
+            - Name: DB_TYPE
+              Value: mysql
+            - Name: DB_USER
+              Value: admin
+            - Name: DB_PASSWORD
+              Value: Apk@2020
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - >-
+                (printf 'GET /artifactory/api/system/ping HTTP/1.0\r\n\r\n';
+                sleep 1) | nc 127.0.0.1 8081 | grep OK || exit 1
+            Interval: 5
+            Retries: 3
+            StartPeriod: 60
+            Timeout: 10
+          Image: 'docker.bintray.io/jfrog/artifactory-pro:latest'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: ECSLogGroup
+              awslogs-region: 'AWS::Region'
+              awslogs-stream-prefix: artifactory
+          MountPoints:
+            - ContainerPath: /artifactory_extra_conf
+              ReadOnly: false
+              SourceVolume: etc
+            - ContainerPath: /tmp/plugins
+              ReadOnly: false
+              SourceVolume: temp-plugins
+            - ContainerPath: /artifactory_extra_certs
+              ReadOnly: false
+              SourceVolume: java-certs
+          Name: artifactory
+          PortMappings:
+            - ContainerPort: 8081
+              HostPort: 8081
+              Protocol: tcp
+          Ulimits:
+            - HardLimit: 65535
+              Name: nproc
+              SoftLimit: 65535
+            - HardLimit: 40000
+              Name: nofile
+              SoftLimit: 32000
+        - DependsOn:
+            - Condition: HEALTHY
+              ContainerName: artifactory
+          Environment:
+            - Name: ART_BASE_URL
+              Value: 'http://artifactory:8081/artifactory'
+            - Name: SSL
+              Value: 'true'
+          Essential: false
+          Image: 'docker.bintray.io/jfrog/nginx-artifactory-pro:latest'
+          Links:
+            - 'artifactory:artifactory'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: ECSLogGroup
+              awslogs-region:
+                Ref: 'AWS::Region'
+              awslogs-stream-prefix: nginx
+          MountPoints:
+            - ContainerPath: /var/opt/jfrog/nginx
+              ReadOnly: false
+              SourceVolume: nginx
+          Name: nginx
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: tcp
+            - ContainerPort: 443
+              HostPort: 443
+              Protocol: tcp
+          Ulimits:
+            - HardLimit: 65535
+              Name: nproc
+              SoftLimit: 65535
+            - HardLimit: 40000
+              Name: nofile
+              SoftLimit: 32000
+      Cpu: '2048'
+      ExecutionRoleArn: ECSTaskExecutionRole
+      Family: jfrog
+      Memory: '4096'
+      NetworkMode: bridge
+      RequiresCompatibilities:
+        - FARGATE
+      Volumes:
+        - Host:
+            SourcePath: /data/jfrog/artifactory/etc/
+          Name: etc
+        - Host:
+            SourcePath: /data/jfrog/artifactory/tmp/plugins
+          Name: temp-plugins
+        - Host:
+            SourcePath: /data/jfrog/artifactory/java_certs
+          Name: java-certs
+        - Host:
+            SourcePath: /data/jfrog/nginx
+          Name: nginx
+    Type: 'AWS::ECS::TaskDefinition'
+  DefaultTargetGroup:
+    Properties:
+      Name: default
+      Port: '8081'
+      Protocol: HTTP
+      VpcId: vpc-00bc918e95f3c7bac
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+  ECSCluster:
+    Properties:
+      ClusterName: jfrog
+    Type: 'AWS::ECS::Cluster'
+  ECSService:
+    Properties:
+      Cluster: ECSCluster
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 300
+      LaunchType: FARGATE
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 443
+          TargetGroupArn: TargetGroup
+      ServiceName: jfrog
+      TaskDefinition:
+        Ref: ArtifactoryTaskDefinition
+    Type: 'AWS::ECS::Service'
+  ListenerRule:
+    Properties:
+      Actions:
+        - TargetGroupArn: TargetGroup
+          Type: forward
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /
+      ListenerArn: LoadBalancerListener
+      Priority: 2
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+  LoadBalancer:
+    Properties:
+      Name: ecs-services
+      SecurityGroups:
+        - LoadBalancerSecurityGroup
+      Subnets:
+        - subnet-08f70c0071bfe1f87
+        - subnet-0b1746f3a2eb0355c
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+  LoadBalancerListener:
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: DefaultTargetGroup
+          Type: forward
+      LoadBalancerArn: LoadBalancer
+      Port: 8081
+      Protocol: HTTP
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+  LoadBalancerSecurityGroup:
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+      VpcId: vpc-00bc918e95f3c7bac
+    Type: 'AWS::EC2::SecurityGroup'
+  TargetGroup:
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 10
+      Matcher:
+        HttpCode: 200-299
+      Port: 8081
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: vpc-00bc918e95f3c7bac
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+  
+
+Outputs: 
+  PublicSubnet : 
+    Value: !GetAtt ArtifactoryDB.Endpoint.Address
+    Export:  
+      Name: ArtifactoryDBEndpointAddress
+  

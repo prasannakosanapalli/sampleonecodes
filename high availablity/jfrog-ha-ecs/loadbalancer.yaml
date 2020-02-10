@@ -1,0 +1,103 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "Deploys the ECS taskdefination, cluster and loadbalancer for Artifactory"
+Parameters:
+  comptype:
+    Type: String
+    Default: EC2 
+  
+
+
+Resources:
+  ECStaskdefination:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      RequiresCompatibilities: 
+        - !Ref comptype
+      ContainerDefinitions:
+        - Name: nginx
+          Image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest 
+          PortMappings:
+            - ContainerPort: 80
+              HostPort: 80
+              Protocol: tcp
+            - ContainerPort: 443
+              HostPort: 443
+              Protocol: tcp
+          Essential: True
+          Cpu: "10"
+          Memory: 1024
+      NetworkMode: bridge
+      Cpu: "2048"
+      Memory: "4096"
+      Family: ecs
+      
+
+      
+  ECSCLUSTER: 
+    Type: AWS::ECS::Cluster
+
+  ECSservice:     
+    Type: AWS::ECS::Service
+    Properties: 
+      Cluster: !Ref ECSCLUSTER 
+      DesiredCount: 2
+      LaunchType: EC2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      HealthCheckGracePeriodSeconds: 20
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          LoadBalancerName: !Ref elb
+      ServiceName: Jfrog
+      TaskDefinition: !Ref ECStaskdefination
+      Role: !Ref Role 
+      PlacementStrategies:
+        - Type: binpack
+          Field: memory
+        - Type: spread
+          Field: host
+
+  elb:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      LoadBalancerName: nginxnew
+      Listeners:
+        - InstancePort: 80
+          LoadBalancerPort: 80
+          Protocol: HTTP
+      Subnets: 
+        - !Ref Subnet1
+    DependsOn: GatewayAttachment
+  VPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/24
+  Subnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref VPC
+      CidrBlock: 10.0.0.0/25
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+  GatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId: !Ref InternetGateway
+      VpcId: !Ref VPC
+  Role:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: 2008-10-17
+        Statement:
+          - Sid: ''
+            Effect: Allow
+            Principal:
+              Service: ecs.amazonaws.com
+            Action: 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/service-role/AmazonEC2ContainerServiceRole'
+
+

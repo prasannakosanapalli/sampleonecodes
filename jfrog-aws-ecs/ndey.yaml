@@ -1,0 +1,143 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters: 
+ KeyName: 
+  Type: "AWS::EC2::KeyPair::KeyName"
+  Default: python_app
+  Description: "Name of an existing EC2 KeyPair to enable SSH access to the ECS instances."
+ VpcId: 
+  Type: "AWS::EC2::VPC::Id"
+  Default: "vpc-9050c3eb"
+  Description: "Select a VPC that allows instances to access the Internet."
+ SubnetId: 
+  Type: "List<AWS::EC2::Subnet::Id>"
+  Default: "subnet-36f3c919"
+  Description: "Select at two subnets in your selected VPC."
+ DesiredCapacity: 
+  Type: Number
+  Default: 1
+  Description: "Number of instances to launch in your ECS cluster."
+ MaxSize: 
+  Type: Number
+  Default: 1
+  Description: "Maximum number of instances that can be launched in your ECS cluster."
+ InstanceType: 
+  Description: "EC2 instance type"
+  Type: String
+  Default: "t2.micro"
+  ConstraintDescription: "Please choose a valid instance type."
+Resources: 
+ ECSCluster: 
+  Type: "AWS::ECS::Cluster"
+  Properties: 
+   ClusterName: "JFROG-prasanna"
+ taskdefinition: 
+  Type: "AWS::ECS::TaskDefinition"
+  Properties: 
+   ExecutionRoleArn: "arn:aws:iam::536285340728:role/ecsTaskExecutionRole"
+   ContainerDefinitions: 
+      - LogConfiguration: 
+        LogDriver: awslogs
+        Options: 
+        "awslogs-group": "/ecs/MyJfrog_Task"
+        "awslogs-region": "us-east-1"
+        "awslogs-stream-prefix": ecs
+    
+        PortMappings: 
+          - HostPort: 8081
+            Protocol: tcp
+            ContainerPort: 8081
+        Ulimits: 
+          - Name: nofile
+            SoftLimit: 32000
+            HardLimit: 32000
+        Image: "docker.bintray.io/jfrog/artifactory-oss:latest"
+        Name: JFRO_CONT
+    Memory: 4096
+    Family: MyJfrog_Task
+    RequiresCompatibilities: 
+      - FARGATE
+    NetworkMode: awsvpc
+    Cpu: 2048
+ service: 
+  Type: "AWS::ECS::Service"
+  Properties: 
+   Cluster: 
+    Ref: ECSCluster
+   NetworkConfiguration: 
+    AwsvpcConfiguration: 
+     AssignPublicIp: ENABLED
+     SecurityGroups: 
+      - "sg-0eb21836ffe9d043d"
+     Subnets: 
+      - "subnet-36f3c919"
+   DesiredCount: 1
+   LaunchType: FARGATE
+   TaskDefinition: 
+    Ref: taskdefinition
+   LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 443
+          TargetGroupArn:  
+            Ref:TargetGroup
+
+
+ListenerRule:
+    Properties:
+      Actions:
+        - TargetGroupArn: !Ref TargetGroup
+          Type: forward
+      Conditions:
+        - Field: path-pattern
+          Values:
+            - /
+      ListenerArn: !Ref LoadBalancerListener
+      Priority: 2
+    Type: 'AWS::ElasticLoadBalancingV2::ListenerRule'
+  LoadBalancer:
+    Properties:
+      Name: ecs-services
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - subnet-08f70c0071bfe1f87
+        - subnet-0b1746f3a2eb0355c
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
+  LoadBalancerListener:
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref DefaultTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 8081
+      Protocol: HTTP
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+  LoadBalancerSecurityGroup:
+    Properties:
+      GroupDescription: Security group for loadbalancer to services on ECS
+      SecurityGroupIngress:
+        - CidrIp: 0.0.0.0/0
+          IpProtocol: -1
+      VpcId: vpc-00bc918e95f3c7bac
+    Type: 'AWS::EC2::SecurityGroup'
+  TargetGroup:
+    Properties:
+      HealthCheckIntervalSeconds: 10
+      HealthCheckProtocol: HTTP
+      HealthCheckTimeoutSeconds: 5
+      HealthyThresholdCount: 10
+      Matcher:
+        HttpCode: 200-299
+      Port: 8081
+      Protocol: HTTP
+      TargetType: ip
+      VpcId: vpc-00bc918e95f3c7bac
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+
+
+DefaultTargetGroup:
+    Properties:
+      Name: default
+      Port: '8081'
+      Protocol: HTTP
+      VpcId: vpc-00bc918e95f3c7bac
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'

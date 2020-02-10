@@ -1,0 +1,140 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  vpc:
+    Type: String
+    Default: devops-training
+
+Resources: 
+  Cluster:
+    Type: AWS::ECS::Cluster
+    Properties: 
+      ClusterName: jfrog-ecs
+    
+  taskDefination: 
+    Properties: 
+      executionRoleArn: arn:aws:iam::536285340728:role/ecsTaskExecutionRole
+      containerDefinitions:
+      -  
+        portMappings:
+        - hostPort: 8081
+          protocol: tcp
+          containerPort: 8081
+        
+        cpu: 256
+        memory: 256 
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2 
+        name: jfrog
+      - 
+        portMappings:
+        - hostPort: 80
+          protocol: tcp
+          containerPort: 80 
+        cpu: 256
+        memory: 256
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+        name: nginx
+      memory: '3076'
+      taskRoleArn: arn:aws:iam::536285340728:role/ecsTaskExecutionRole
+      compatibilities:
+      - EC2
+      taskDefinitionArn: arn:aws:ecs:us-east-1:536285340728:task-definition/jfrog-prasanna:1
+      family: jfrog-prasanna
+      requiresAttributes:
+      - 
+        name: com.amazonaws.ecs.capability.ecr-auth
+      - 
+        name: com.amazonaws.ecs.capability.task-iam-role
+      -  
+        name: ecs.capability.execution-role-ecr-pull
+       
+      requiresCompatibilities:
+      - EC2
+      networkMode: Bridge
+      cpu: '3076'
+      revision: 1
+      status: ACTIVE
+    Type: "AWS::ECS::TaskDefinition"    
+  
+   
+  ECSservice:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref Cluster
+      LaunchType: EC2
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 10
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          LoadBalancerName: !Ref Loadbalancer
+      TaskDefinition: !Ref taskDefination
+      Role: AWSServiceRoleForECS
+
+  LaunchConfiguration:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties: 
+      ClassicLinkVPCId: !Ref vpc
+      KeyName: prasanna
+      ImageId: ami-062f7200baf2fa504
+      InstanceType: t2.micro
+      LaunchConfigurationName: jfrog
+      SecurityGroups:
+        - sample-prsanna
+
+  AutoscaleGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties: 
+      AutoScalingGroupName: jfrog
+      AvailabilityZones: 
+        - String
+      Cooldown: 300
+      DesiredCapacity: 1
+      HealthCheckGracePeriod: 10
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      LoadBalancerNames: 
+        - !Ref Loadbalancer
+      MaxSize: 2
+      MinSize: 1
+
+  
+  Loadbalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: ArtifactoryELB
+      Scheme: 
+      - internal-facing
+      Subnets: 
+        - subnet-2e331811
+        - subnet-36f3c919
+        - subnet-5a615a07
+      Type: network
+  ArtifactoryTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      Name: Artifactory
+      Port: 80
+      Protocol: TCP
+      #Tags: 
+      #  - !Ref DeploymentTag
+      TargetType: instance
+      UnhealthyThresholdCount: 3
+      VpcId: !Ref vpc
+  ArtifactoryELBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - TargetGroupArn: !Ref ArtifactoryTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref Loadbalancer
+      Port: 80
+      Protocol: TCP

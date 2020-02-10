@@ -1,0 +1,106 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Parameters:
+  ServiceName:
+    Type: String
+    Default: ecs-jfrog
+Resources:
+Cluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Join ['', [!Ref ServiceName, Cluster]]
+      ClusterSettings:
+        - Name: containerInsights
+          Value: enabled
+  
+ArtifactoryTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      networkMode: bridge
+      family: application-stack
+      containerDefinitions:
+      - name: nginx
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:latest
+        memory: '256'
+        cpu: '256'
+        essential: true
+        portMappings:
+        - containerPort: '80'
+          protocol: tcp
+        links:
+        - app
+      - name: app
+        image: 536285340728.dkr.ecr.us-east-1.amazonaws.com/prasanna/samplerepo:2
+        memory: '256'
+        cpu: '256'
+        essential: true
+ECSservice:
+    Type: AWS::ECS::Service
+    Properties:
+      Cluster: !Ref cluster
+      DeploymentConfiguration:
+        MaximumPercent: 200
+        MinimumHealthyPercent: 100
+      DesiredCount: 1
+      HealthCheckGracePeriodSeconds: 10
+      LoadBalancers:
+        - ContainerName: nginx
+          ContainerPort: 80
+          LoadBalancerName: !Ref ArtifactoryELB
+      TaskDefinition: !Ref ArtifactoryTaskDefinition
+      ServiceName: !Ref ServiceName
+      Role: AWSServiceRoleForECS
+                    
+ArtifactoryLaunchConfiguration:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Properties:
+      KeyName: prasanna
+      ImageId: ami-062f7200baf2fa504
+      InstanceType: t2.micro
+      LaunchConfigurationName: jfrog
+      SecurityGroups:
+        - sample-prsanna
+      
+ArtifactoryScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      AutoScalingGroupName: jfrog
+      LaunchConfigurationName: !Ref ArtifactoryLaunchConfiguration
+      MinSize: 2
+      MaxSize: 4
+      Cooldown: '300'
+      DesiredCapacity: 2
+      HealthCheckType: EC2
+      HealthCheckGracePeriod: 600
+      LoadBalancerNames: 
+      - Ref: ArtifactoryELB
+ArtifactoryELB:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      IpAddressType: ipv4
+      Name: ArtifactoryELB
+      Type: network
+
+ArtifactoryTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties: 
+      HealthCheckEnabled: True
+      HealthCheckIntervalSeconds: 30
+      HealthCheckProtocol: TCP
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 3
+      Name: Artifactory
+      Port: 80
+      Protocol: TCP
+      TargetType: instance
+      UnhealthyThresholdCount: 3
+      VpcId: vpc-0e841bee2850130f0
+
+ArtifactoryELBListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties: 
+      DefaultActions: 
+        - TargetGroupArn: !Ref ArtifactoryTargetGroup
+          Type: forward
+      LoadBalancerArn: !Ref ArtifactoryELB
+      Port: 80
+      Protocol: TCP
